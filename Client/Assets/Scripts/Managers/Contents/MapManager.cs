@@ -173,7 +173,7 @@ public class MapManager
 					continue;
 
 				// 비용 계산
-				int g = 0; // node.G + _cost[i];
+				int g = 0;// node.G + _cost[i];
 				int h = 10 * ((dest.Y - next.Y) * (dest.Y - next.Y) + (dest.X - next.X) * (dest.X - next.X));
 				// 다른 경로에서 더 빠른 길 이미 찾았으면 스킵
 				if (open[next.Y, next.X] < g + h)
