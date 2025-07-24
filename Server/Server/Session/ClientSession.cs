@@ -8,38 +8,55 @@ using ServerCore;
 using System.Net;
 using Google.Protobuf.Protocol;
 using Google.Protobuf;
+using Server.Game.Room;
+using Server.Game.Object;
+using Server.Data;
 
 namespace Server
 {
-	class ClientSession : PacketSession
+    public class ClientSession : PacketSession
 	{
+		public Player MyPlayer { get; set; }
 		public int SessionId { get; set; }
 
-		public override void OnConnected(EndPoint endPoint)
+		public void Send(IMessage packet)
+		{
+			string masgName = packet.Descriptor.Name.Replace("_", string.Empty);
+			MsgId msgId = (MsgId)Enum.Parse(typeof(MsgId), masgName);
+
+            ushort size = (ushort)packet.CalculateSize();
+            byte[] sendBuffer = new byte[size + 4];
+            Array.Copy(BitConverter.GetBytes((ushort)(size + 4)), 0, sendBuffer, 0, sizeof(ushort));
+            Array.Copy(BitConverter.GetBytes((ushort)msgId), 0, sendBuffer, 2, sizeof(ushort));
+            Array.Copy(packet.ToByteArray(), 0, sendBuffer, 4, size);
+
+			Send(new ArraySegment<byte>(sendBuffer));
+        }
+
+        public override void OnConnected(EndPoint endPoint)
 		{
 			Console.WriteLine($"OnConnected : {endPoint}");
 
-			// PROTO Test
-			S_Chat chat = new S_Chat()
+			// PROTO TEST
+			MyPlayer = ObjectManager.Instance.Add<Player>();
 			{
-				Context = "안녕하세요"
-			};
+				MyPlayer.Info.Name = $"Player_{MyPlayer.Info.ObjectId}";
+				MyPlayer.Info.PosInfo.State = CreatureState.Idle;
+				MyPlayer.Info.PosInfo.MoveDir = MoveDir.Down;
+				MyPlayer.Info.PosInfo.PosX = 0;
+				MyPlayer.Info.PosInfo.PosY = 0;
 
-			ushort size = (ushort)chat.CalculateSize();
-			byte[] sendBuffer = new byte[size + 4];
-			Array.Copy(BitConverter.GetBytes(size + 4), 0, sendBuffer, 0, sizeof(ushort));
-			ushort protocolId = (ushort)MsgId.SChat;
-			Array.Copy(BitConverter.GetBytes(protocolId), 0, sendBuffer, 2, sizeof(ushort));
-			Array.Copy(chat.ToByteArray(), 0, sendBuffer, 4, size);
+				StatInfo stat = null;
+				DataManager.StatDict.TryGetValue(1, out stat);
+				MyPlayer.Stat.MergeFrom(stat); 
 
-			Send(new ArraySegment<byte>(sendBuffer));
+				MyPlayer.Session = this;
+			}
 
-			//S_Chat chat2 = new S_Chat();
-			//chat2.MergeFrom(sendBuffer, 4, sendBuffer.Length - 4);
-			//////////////////////////
-			//////////////////////////
-			//Program.Room.Push(() => Program.Room.Enter(this));
-		}
+			GameRoom room = RoomManager.Instance.Find(1);
+
+            room.Push(room.EnterGame, MyPlayer);
+        }
 
 		public override void OnRecvPacket(ArraySegment<byte> buffer)
 		{
@@ -48,7 +65,10 @@ namespace Server
 
 		public override void OnDisconnected(EndPoint endPoint)
 		{
-			SessionManager.Instance.Remove(this);
+			GameRoom room = RoomManager.Instance.Find(1);
+			room.Push(room.LeaveGame, MyPlayer.Info.ObjectId);
+
+            SessionManager.Instance.Remove(this);
 
 			Console.WriteLine($"OnDisconnected : {endPoint}");
 		}
