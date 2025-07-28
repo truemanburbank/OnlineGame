@@ -30,9 +30,8 @@
 
 ## 실행 방법
 
-1. 서버: C# 콘솔 프로젝트 실행  
-2. 클라이언트: Unity 프로젝트 빌드 및 실행  
-3. 서버와 클라이언트 간 TCP 연결 확인 후 게임 플레이  
+- Executable/Server/Server.exe를 실행합니다.
+- Executable/Client.zip을 압축 해제하고 Executable/Client/Client.exe을 실행합니다. (동시에 여러 개 실행 가능)
 
 ---
 
